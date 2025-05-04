@@ -1,0 +1,46 @@
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider-specific
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# ASP.NET Core
+appsettings.Development.json
+appsettings.*.json
+secrets.json
+
+# Logs
+*.log
+logs/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+packages/
+
+# dotnet CLI
+.project.lock.json
+project.lock.json
+
+# Others
+*.db
+*.sqlite
+*.bak
+*.mdf
+*.ldf
+
+# Publish directory
+publish/
