@@ -2,6 +2,7 @@
 using bd2proj.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Xml.Linq;
+using System.Xml.XPath;
 
 namespace bd2proj.Controllers
 {
@@ -75,6 +76,30 @@ namespace bd2proj.Controllers
             return lookedFor.ToList();
         }
 
+        [HttpPut("{id}")]
+        public async Task<ActionResult<XmlDocumentModel>> PutXmlDocument(int id, [FromBody] XmlUpdateRequest req)
+        {
+            var doc = await _context.XmlDocuments.FindAsync(id);
+            if (doc == null)
+            {
+                return NotFound(new {Message = "The requested XML Document was not found in the Database", RequestedId = id});
+            }
+            
+            var xml = XDocument.Parse(doc.XmlContent);
+            var element = xml.XPathSelectElement(req.XPath);
+
+            if (element == null)
+            {
+                return NotFound(new { Message = "Element not found" });
+            }
+            
+            element.Value = req.NewValue;
+            doc.XmlContent = xml.ToString();
+            _context.SaveChanges();
+
+            return Ok("XML updated");
+        }
+        
         [HttpDelete("{id}")]
         public async Task<ActionResult<XmlDocumentModel>> DeleteXmlDocument(int id)
         {
