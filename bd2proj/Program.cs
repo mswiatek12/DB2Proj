@@ -1,35 +1,38 @@
-﻿using bd2proj;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-    
+// Read the connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Register your connection string so it can be used in services
+builder.Services.AddSingleton(new SqlConnection(connectionString));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// Try database connection manually (like EF's OpenConnection/CloseConnection)
+try
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try
+    using (var connection = new SqlConnection(connectionString))
     {
-        db.Database.OpenConnection();
-        db.Database.CloseConnection();
+        connection.Open();
         Console.WriteLine("Database connection established");
+        connection.Close();
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine(ex.Message);
-        throw;
-    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine("Database connection failed: " + ex.Message);
+    throw;
 }
 
 if (app.Environment.IsDevelopment())
@@ -38,9 +41,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-
-
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();
