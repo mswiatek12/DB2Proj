@@ -4,6 +4,7 @@ using bd2proj.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using System.Xml.Xsl;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 
@@ -153,6 +154,32 @@ namespace bd2proj.Controllers
             }
 
             return results;
+        }
+
+        [HttpGet("{id}/transform")]
+        public async Task<IActionResult> XslTransform(int id)
+        {
+            var result = await GetXmlDocument(id);
+            if (result.Result is NotFoundObjectResult)
+                return result.Result;
+
+            var xmlModel = result.Value;
+            if (xmlModel == null || string.IsNullOrWhiteSpace(xmlModel.XmlContent))
+                return BadRequest("XML content is missing or empty.");
+
+            var xsltPath = Path.Combine("XSL", "XSLT/UniversalTransformation.xsl");
+            if (!System.IO.File.Exists(xsltPath))
+                return NotFound("XSLT file not found.");
+
+            var transform = new XslCompiledTransform();
+            using var xsltReader = XmlReader.Create(xsltPath);
+            transform.Load(xsltReader);
+
+            using var xmlReader = XmlReader.Create(new StringReader(xmlModel.XmlContent));
+            using var writer = new StringWriter();
+            transform.Transform(xmlReader, null, writer);
+
+            return Content(writer.ToString(), "text/html");
         }
     }
 }
