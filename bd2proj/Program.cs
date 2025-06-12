@@ -5,6 +5,8 @@ using Microsoft.Extensions.Configuration;
 using System.Data.SqlClient;
 using Microsoft.Data.SqlClient;
 
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Read the connection string
