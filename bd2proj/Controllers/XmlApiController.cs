@@ -20,6 +20,37 @@ namespace bd2proj.Controllers
         {
             _connectionString = config.GetConnectionString("DefaultConnection");
         }
+
+        [HttpGet]
+        public async Task<ActionResult<List<XmlDocumentModel>>> GetAllXmls()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var cmd = new SqlCommand("SELECT * FROM XmlDocuments", conn);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            var xmls = new List<XmlDocumentModel>();
+
+            while (await reader.ReadAsync())
+            {
+                var xml = new XmlDocumentModel
+                {
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    Name = reader.GetString(reader.GetOrdinal("Name")),
+                    XmlContent = reader.GetString(reader.GetOrdinal("XmlContent")),
+                    CreateData = reader.GetDateTime(reader.GetOrdinal("CreateData"))
+                };
+
+                xmls.Add(xml);
+            }
+
+            if (xmls.Count == 0)
+                return NotFound(new { Message = "No documents found" });
+
+            return Ok(xmls);
+        }
         
         [HttpGet("{id}")]
         public async Task<ActionResult<XmlDocumentModel>> GetXmlDocument(int id)
@@ -165,11 +196,9 @@ namespace bd2proj.Controllers
 
             var xmlModel = result.Value;
             if (xmlModel == null || string.IsNullOrWhiteSpace(xmlModel.XmlContent))
-                return BadRequest("XML content is missing or empty.");
+                return BadRequest(new { Message = "XML content is missing or empty." });
 
-            var xsltPath = Path.Combine("XSL", "XSLT/UniversalTransformation.xsl");
-            if (!System.IO.File.Exists(xsltPath))
-                return NotFound("XSLT file not found.");
+            var xsltPath = "./XSLT/UniversalTransformation.xsl";
 
             var transform = new XslCompiledTransform();
             using var xsltReader = XmlReader.Create(xsltPath);
