@@ -17,6 +17,7 @@ obj/
 # ASP.NET Core
 appsettings.Development.json
 appsettings.*.json
+appsettings.Test.json
 secrets.json
 
 # Logs

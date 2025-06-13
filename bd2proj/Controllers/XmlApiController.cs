@@ -8,6 +8,7 @@ using System.Xml.Xsl;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 
+
 namespace bd2proj.Controllers
 {
     [Route("api/[controller]")]
@@ -143,49 +144,76 @@ namespace bd2proj.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<ActionResult<List<XmlDocumentModel>>> SearchXmlDocument(
-            [FromQuery] string? name,
-            [FromQuery] string? node,
-            [FromQuery] string? attribute,
-            [FromQuery] string? attributeValue)
+public async Task<ActionResult<List<string>>> SearchXmlFragments(
+    [FromQuery] string? name,
+    [FromQuery] string? xpath)
+{
+    var results = new List<string>();
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        var cmd = new SqlCommand("SELECT Id, Name, XmlContent, CreateData FROM XmlDocuments", conn);
+        using var reader = await cmd.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
         {
-            var results = new List<XmlDocumentModel>();
+            var documentName = reader.IsDBNull(1) ? null : reader.GetString(1);
 
-            using var conn = new SqlConnection(_connectionString);
-            await conn.OpenAsync();
+            if (!string.IsNullOrEmpty(name) && documentName != name)
+                continue;
 
-            var cmd = new SqlCommand("SELECT Id, Name, XmlContent, CreateData FROM XmlDocuments", conn);
-            using var reader = await cmd.ExecuteReaderAsync();
+            var xmlContent = reader.GetString(2);
 
-            while (await reader.ReadAsync())
+            XDocument xdoc;
+            try
             {
-                var doc = new XmlDocumentModel
-                {
-                    Id = reader.GetInt32(0),
-                    Name = reader.IsDBNull(1) ? null : reader.GetString(1),
-                    XmlContent = reader.GetString(2),
-                    CreateData = reader.GetDateTime(3)
-                };
-
-                var xml = XDocument.Parse(doc.XmlContent);
-
-                if (name != null && doc.Name != name)
-                    continue;
-
-                if (node != null && !xml.Descendants(node).Any())
-                    continue;
-
-                if (attribute != null && !xml.Descendants().Any(e => e.Attribute(attribute) != null))
-                    continue;
-
-                if (attributeValue != null && !xml.Descendants().Any(e => e.Attributes().Any(a => a.Value == attributeValue)))
-                    continue;
-
-                results.Add(doc);
+                xdoc = XDocument.Parse(xmlContent);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Failed to parse XML document with name {documentName}: {ex.Message}");
             }
 
-            return results;
+            if (string.IsNullOrWhiteSpace(xpath))
+            {
+                // If no XPath provided, return whole document
+                results.Add(xdoc.ToString());
+                continue;
+            }
+
+            try
+            {
+                // Create an XPath navigator
+                var navigator = xdoc.CreateNavigator();
+                var nodes = navigator.Select(xpath);
+
+                while (nodes.MoveNext())
+                {
+                    var current = nodes.Current;
+                    if (current != null)
+                    {
+                        results.Add(current.OuterXml);
+                    }
+                }
+            }
+            catch (XPathException ex)
+            {
+                return BadRequest($"Invalid XPath expression: {ex.Message}");
+            }
         }
+
+        return results;
+    }
+    catch (Exception ex)
+    {
+        // Log ex.ToString() somewhere if you have logging
+
+        return StatusCode(500, $"Unexpected error: {ex.Message}");
+    }
+}
 
         [HttpGet("{id}/transform")]
         public async Task<IActionResult> XslTransform(int id)

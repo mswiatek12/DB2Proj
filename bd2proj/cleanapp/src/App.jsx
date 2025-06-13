@@ -11,10 +11,9 @@ function App() {
     const [xmlContent, setXmlContent] = useState("")
     const [createDate, setCreateDate] = useState("")
     const [deleteId, setDeleteId] = useState("")
-    const [searchParams, setSearchParams] = useState({ name: "", node: "", attribute: "", attributeValue: "" })
-    const [xpath, setXPath] = useState("");
-    const [newValue, setNewValue] = useState("");
-
+    const [searchParams, setSearchParams] = useState({ name: "", xpath: "" })
+    const [xpath, setXPath] = useState("")
+    const [newValue, setNewValue] = useState("")
 
     const updateXPathValue = async () => {
         if (!singleDocumentId) {
@@ -40,12 +39,13 @@ function App() {
 
             const msg = await response.text();
             setError(null);
-            alert(msg); // lub inna informacja o sukcesie
-            fetchSingleDocument(); // odśwież dokument po update
+            alert(msg);
+            fetchSingleDocument();
         } catch (e) {
             setError(e.message);
         }
     }
+
     const fetchSingleDocument = async () => {
         try {
             const response = await fetch(`/api/xmlapi/${singleDocumentId}`)
@@ -80,7 +80,7 @@ function App() {
                 body: JSON.stringify({
                     name,
                     xmlContent,
-                    createData: createDate
+                    createDate: createDate
                 })
             })
             const data = await response.json()
@@ -130,17 +130,22 @@ function App() {
     };
 
     const searchDocuments = async () => {
-        const query = new URLSearchParams(searchParams).toString()
+        const query = new URLSearchParams({
+            name: searchParams.name,
+            xpath: searchParams.xpath
+        }).toString();
+
         try {
-            const response = await fetch(`/api/xmlapi/search?${query}`)
-            const json = await response.json()
+            const response = await fetch(`/api/xmlapi/search?${query}`);
+            const json = await response.json();
             setDocuments([JSON.stringify(json, null, 2)])
-            setShowView(true)
-            setError(null)
+            setShowView(true);
+            setShowInsert(false);
+            setError(null);
         } catch {
-            setError("Failed to search documents.")
+            setError("Failed to search documents.");
         }
-    }
+    };
 
     return (
         <div className="container">
@@ -152,11 +157,20 @@ function App() {
                 <input type="text" placeholder="ID to delete" value={deleteId} onChange={e => setDeleteId(e.target.value)} />
                 <button className="button" onClick={deleteDocument}>DELETE A DOCUMENT</button>
                 <button className="button" onClick={transformDocument}>TRANSFORM DOCUMENT (XSLT)</button>
+
                 <h3>Search XML</h3>
-                <input type="text" placeholder="Name" onChange={e => setSearchParams({ ...searchParams, name: e.target.value })} />
-                <input type="text" placeholder="Node" onChange={e => setSearchParams({ ...searchParams, node: e.target.value })} />
-                <input type="text" placeholder="Attribute" onChange={e => setSearchParams({ ...searchParams, attribute: e.target.value })} />
-                <input type="text" placeholder="Attribute Value" onChange={e => setSearchParams({ ...searchParams, attributeValue: e.target.value })} />
+                <input
+                    type="text"
+                    placeholder="Name"
+                    value={searchParams.name}
+                    onChange={e => setSearchParams(prev => ({ ...prev, name: e.target.value }))}
+                />
+                <input
+                    type="text"
+                    placeholder="XPath"
+                    value={searchParams.xpath}
+                    onChange={e => setSearchParams(prev => ({ ...prev, xpath: e.target.value }))}
+                />
                 <button className="button" onClick={searchDocuments}>SEARCH</button>
             </div>
 
@@ -175,7 +189,6 @@ function App() {
                         <h2>Requested Resources:</h2>
                         <div id="documents">
                             {documents.map((doc, index) =>
-                                // Jeśli to HTML (np. po transformacji), wstaw jako HTML
                                 doc.trim().startsWith('<') ? (
                                     <div key={index} dangerouslySetInnerHTML={{ __html: doc }} />
                                 ) : (
@@ -204,7 +217,6 @@ function App() {
                     </section>
                 )}
                 {error && <p style={{ color: 'red' }}>{error}</p>}
-                
             </div>
         </div>
     )
